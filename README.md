@@ -4,6 +4,10 @@ A FreeCAD macro that carves the top of a solid-body guitar blank into a Les Paul
 style arched cap. Click the flat top face, run the macro, and get a new carved
 body. Your original body is hidden, not changed.
 
+![Carved top produced by the macro](docs/images/carved-top.png)
+
+*A body carved with the default settings. Height is exaggerated 2.5x so the carve is easier to see.*
+
 - 14 mm removed at the outer rim, falling to 2 mm at a flat crown
 - A soft S-curve shoulder between the rim and the crown
 - A flat central strip running through the waist to the front
@@ -62,6 +66,7 @@ and **Angular Deflection** to `5`.
 Messages you may see:
 - "Select exactly one FACE": nothing was selected, or more than one object was.
 - "must be a horizontal face": you clicked a side face. Click the top face.
+- "points down": you clicked the bottom face. Click the top face.
 
 ## Tune the carve
 

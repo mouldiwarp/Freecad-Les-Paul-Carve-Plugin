@@ -59,7 +59,8 @@ def top_face_of(shape):
     """The planar face with normal +Z that has the largest ZMax."""
     best = None
     for f in shape.Faces:
-        if isinstance(f.Surface, Part.Plane) and abs(f.Surface.Axis.z) > 0.999 and f.Surface.Axis.z > 0:
+        if isinstance(f.Surface, Part.Plane) and abs(f.Surface.Axis.z) > 0.999 and \
+                f.normalAt(*[0.5 * (a + b) for a, b in zip(f.ParameterRange[0::2], f.ParameterRange[1::2])]).z > 0.999:
             if best is None or f.BoundBox.ZMax > best.BoundBox.ZMax:
                 best = f
     return best
@@ -190,6 +191,18 @@ def test_smoothing_keeps_shape_close():
           "edge=%.2f centre=%.2f" % (edge, centre))
 
 
+def test_rejects_bottom_face():
+    """A downward-facing face (the bottom) must be refused, not carved into nothing."""
+    box = Part.makeBox(100, 50, 20)
+    bottom = [f for f in box.Faces if isinstance(f.Surface, Part.Plane)
+              and abs(f.Surface.Axis.z) > 0.999 and f.BoundBox.ZMax < 1e-6][0]
+    try:
+        lpc.carve_top(bottom, box)
+        check("rejects bottom face", False, "no error raised")
+    except ValueError:
+        check("rejects bottom face", True)
+
+
 def test_rejects_non_horizontal_face():
     box = Part.makeBox(100, 50, 20)
     side = [f for f in box.Faces if isinstance(f.Surface, Part.Plane) and abs(f.Surface.Axis.z) < 0.001][0]
@@ -315,7 +328,7 @@ def test_macro_path_on_body_carve():
         worst, n_checked = 0.0, 0
         for p in pts:
             for (nx, ny) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                q = App.Vector(p.x + 2.0 * nx, p.y + 2.0 * ny, 0)
+                q = App.Vector(p.x + 2.0 * nx, p.y + 2.0 * ny, info["top_z"])
                 if top.isInside(q, 1e-6, True):
                     z = top_z_at(carved, q.x, q.y)
                     if z is not None:
@@ -345,7 +358,7 @@ def test_macro_path_on_body_carve():
             tx, ty = P[j1][0] - P[j0][0], P[j1][1] - P[j0][1]
             norm = (tx * tx + ty * ty) ** 0.5 or 1.0
             nx, ny = -ty / norm, tx / norm
-            if not top.isInside(App.Vector(P[i][0] + nx, P[i][1] + ny, 0), 1e-6, True):
+            if not top.isInside(App.Vector(P[i][0] + nx, P[i][1] + ny, info["top_z"]), 1e-6, True):
                 nx, ny = -nx, -ny
             z = top_z_at(carved, P[i][0] + 1.5 * nx, P[i][1] + 1.5 * ny)
             zs_edge.append(float("nan") if z is None else z)
@@ -366,7 +379,7 @@ def test_macro_path_on_body_carve():
 
 def run_all():
     tests = [test_rectangle_matches_analytic, test_crown_is_a_flat_plateau, test_front_stays_at_crown_height_with_no_lip, test_first_line_is_half_mm_below_rim, test_smoothing_keeps_shape_close,
-             test_rejects_non_horizontal_face, test_real_body, test_macro_path_on_body_carve]
+             test_rejects_non_horizontal_face, test_rejects_bottom_face, test_real_body, test_macro_path_on_body_carve]
     for t in tests:
         log("--- %s" % t.__name__)
         try:

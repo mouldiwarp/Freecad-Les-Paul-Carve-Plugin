@@ -140,13 +140,19 @@ def _s_curve(t, k):
 
 
 def _check_horizontal(face):
-    normal = face.Surface.Axis if isinstance(face.Surface, Part.Plane) else None
-    if normal is None or abs(normal.z) < 0.999:
+    if not isinstance(face.Surface, Part.Plane) or abs(face.Surface.Axis.z) < 0.999:
         raise ValueError(
-            "The selected face must be a horizontal (flat, +/-Z) face, "
+            "The selected face must be a flat, horizontal face, "
             "such as the top of the body."
         )
-
+    # The plane's axis does not say which way the face points; the face normal does
+    # (it includes the face orientation). The top face points up (+Z).
+    u0, u1, v0, v1 = face.ParameterRange
+    if face.normalAt(0.5 * (u0 + u1), 0.5 * (v0 + v1)).z < 0.999:
+        raise ValueError(
+            "The selected face points down (it is a bottom face). "
+            "Select the TOP face of the body."
+        )
 
 def carve_subelement(obj, subname, params=None):
     """
@@ -284,6 +290,8 @@ def carve_top(top_face, body_shape, params=None):
     carved = body_shape.common(keep)
     if carved.isNull() or not carved.isValid():
         raise RuntimeError("Boolean carve failed; the result is not a valid shape.")
+    if not carved.Solids:
+        raise RuntimeError("The carve removed the whole body. Check that the selected face is the top face.")
 
     # Crown position = centre of the lower-bout flat top.
     sel = crown if crown.any() else inside
