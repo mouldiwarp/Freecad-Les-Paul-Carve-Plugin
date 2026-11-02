@@ -1,0 +1,115 @@
+# Les Paul top carve macro for FreeCAD 1.x
+#
+# Usage: click the flat TOP face of the body in the 3D view, then run this
+# macro from Macro > Macros... It adds a new "CarvedTop_*" object. The
+# original body is hidden, not changed.
+#
+# Every run appends to ~/les_paul_carve_macro.log so problems can be diagnosed
+# even when the Report view is closed. Carve numbers live in
+# les_paul_carve.CarveParams.
+
+import os
+import sys
+import time
+import traceback
+
+LOG = os.path.join(os.path.expanduser("~"), "les_paul_carve_macro.log")
+
+
+def _log(msg):
+    try:
+        with open(LOG, "a") as fh:
+            fh.write("%s  %s\n" % (time.strftime("%H:%M:%S"), msg))
+    except Exception:
+        pass
+
+
+_log("---- macro started (python %s)" % sys.version.split()[0])
+
+try:
+    import FreeCAD as App
+    import FreeCADGui as Gui
+    import importlib
+
+    macro_dir = App.getUserMacroDir(True)
+    # The library lives in a subfolder so it does not show up (and get run by mistake)
+    # in the Macros dialog. The macro folder itself is also searched for older installs.
+    lib_dir = os.path.join(macro_dir, "LesPaulCarve_lib")
+    _log("macro dir: %s  lib dir: %s" % (macro_dir, lib_dir))
+    for d in (macro_dir, lib_dir):
+        if d not in sys.path:
+            sys.path.insert(0, d)
+
+    import les_paul_carve as lpc
+    # A running FreeCAD keeps the first import cached; reload so edits/updates take effect.
+    lpc = importlib.reload(lpc)
+    _log("module loaded from %s" % lpc.__file__)
+except Exception:
+    _log("IMPORT FAILED:\n" + traceback.format_exc())
+    raise
+
+
+def _report(msg, error=False):
+    """Show a message in the Report view, the status bar, the log, and (errors) a dialog."""
+    _log(("ERROR: " if error else "") + msg)
+    (App.Console.PrintError if error else App.Console.PrintMessage)(msg + "\n")
+    try:
+        Gui.getMainWindow().statusBar().showMessage(msg, 15000)
+    except Exception:
+        pass
+    if error:
+        try:
+            try:
+                from PySide6 import QtWidgets
+            except ImportError:
+                from PySide2 import QtWidgets
+            QtWidgets.QMessageBox.warning(Gui.getMainWindow(), "Les Paul carve", msg)
+        except Exception:
+            _log("could not show dialog:\n" + traceback.format_exc())
+
+
+def run():
+    _report("Les Paul carve: starting...")
+
+    sel = Gui.Selection.getSelectionEx()
+    _log("selection: %s" % [(s.ObjectName, list(s.SubElementNames)) for s in sel])
+    if len(sel) != 1 or not sel[0].SubElementNames:
+        _report("Select exactly one FACE: click the flat top face of the body "
+                "in the 3D view (not the body in the tree), then run the macro again.",
+                error=True)
+        return
+
+    obj = sel[0].Object
+    subname = sel[0].SubElementNames[0]
+    if not subname.startswith("Face"):
+        _report("The selected element (%s) is not a face. Click the top face." % subname, error=True)
+        return
+
+    _log("carving %s / %s" % (obj.Name, subname))
+    try:
+        carved, info = lpc.carve_subelement(obj, subname, lpc.CarveParams())
+    except ValueError as err:
+        _report("Carve not applied: %s" % err, error=True)
+        return
+    except Exception as err:
+        _log(traceback.format_exc())
+        _report("Carve failed: %s" % err, error=True)
+        return
+
+    doc = App.ActiveDocument
+    result = doc.addObject("Part::Feature", "CarvedTop_" + obj.Name)
+    result.Label = "Carved top (" + obj.Label + ")"
+    result.Shape = carved
+    if getattr(obj, "ViewObject", None) is not None:
+        obj.ViewObject.Visibility = False
+    doc.recompute()
+
+    _report("Carved top: removed %.0f mm^3, crown at (%.1f, %.1f) mm, %d solid(s)."
+            % (info["removed_volume"], info["crown_xy"][0], info["crown_xy"][1], info["solids"]))
+
+
+try:
+    run()
+except Exception:
+    _log("UNHANDLED:\n" + traceback.format_exc())
+    raise

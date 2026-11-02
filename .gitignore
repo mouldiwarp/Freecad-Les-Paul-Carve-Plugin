@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+test_report.txt
+*.FCStd
+*.FCBak
+*.step
+*.STEP
+.DS_Store
