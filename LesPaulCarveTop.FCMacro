@@ -102,6 +102,15 @@ def run():
     result.Shape = carved
     if getattr(obj, "ViewObject", None) is not None:
         obj.ViewObject.Visibility = False
+    # FreeCAD's default display mesh is coarse (about 1.3 mm off the true surface on a guitar
+    # body), which draws the tightly curved shoulder as a zig-zag. Use a fine display mesh.
+    vo = getattr(result, "ViewObject", None)
+    if vo is not None:
+        try:
+            vo.Deviation = 0.05          # percent of the bounding box: about 0.13 mm here
+            vo.AngularDeflection = 5.0   # degrees
+        except Exception:
+            _log("could not set display tolerance:\n" + traceback.format_exc())
     doc.recompute()
 
     _report("Carved top: removed %.0f mm^3, crown at (%.1f, %.1f) mm, %d solid(s)."

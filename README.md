@@ -54,6 +54,11 @@ Restart FreeCAD afterwards.
 
 If nothing seems to happen, read `~/les_paul_carve_macro.log`. Every run writes to it.
 
+The macro sets a fine display mesh on the result. If an older carved object looks faceted or
+shows a zig-zag along the shoulder, that is FreeCAD's coarse default display mesh, not the
+surface. Select the object, and in the Property view's **View** tab set **Deviation** to `0.05`
+and **Angular Deflection** to `5`.
+
 Messages you may see:
 - "Select exactly one FACE": nothing was selected, or more than one object was.
 - "must be a horizontal face": you clicked a side face. Click the top face.
