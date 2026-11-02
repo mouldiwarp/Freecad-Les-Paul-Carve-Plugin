@@ -114,4 +114,6 @@ a real body. They do not drive the GUI, so check the macro in FreeCAD itself.
 
 ## License
 
-No license has been chosen yet. Until one is added, the code is not licensed for reuse.
+MIT. See [LICENSE](LICENSE).
+
+The software is provided as is. Check every carve against your own measurements before cutting wood.
